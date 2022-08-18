@@ -29,21 +29,33 @@ def createPod(output):
 
     buffer = ''
 
-    with open(output+".a.tmp", mode='r') as tmp:
-        buffer += tmp.read()
-    os.remove(output+".a.tmp")
+    try:
+        with open(output+".a.tmp", mode='r') as tmp:
+            buffer += tmp.read()
+        os.remove(output+".a.tmp")
+    except:
+        pass
     
-    with open(output+".b.tmp", mode='r') as tmp:
-        buffer += tmp.read()
-    os.remove(output+".b.tmp")
+    try:
+        with open(output+".b.tmp", mode='r') as tmp:
+            buffer += tmp.read()
+        os.remove(output+".b.tmp")
+    except:
+        pass
 
-    with open(output+".c.tmp", mode='r') as tmp:
-        buffer += tmp.read()
-    os.remove(output+".c.tmp")
+    try:
+        with open(output+".c.tmp", mode='r') as tmp:
+            buffer += tmp.read()
+        os.remove(output+".c.tmp")
+    except:
+        pass
 
-    with open(output+".d.tmp", mode='r') as tmp:
-        buffer += tmp.read()
-    os.remove(output+".d.tmp")
+    try:
+        with open(output+".d.tmp", mode='r') as tmp:
+            buffer += tmp.read()
+        os.remove(output+".d.tmp")
+    except:
+        pass
     
     buffer  = buffer.split("\n")
     
