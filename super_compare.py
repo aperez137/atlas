@@ -1,17 +1,127 @@
 import os
 import shelve
+from turtle import color
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy import signal
 
-def smooth(curve):
+
+def printGrafo(grafo):
+
+    for key in grafo:
+
+        print("Nodo", key)
+        nodo = grafo[key]
+
+        for arista in nodo:
+            print("\t", arista)
+
+
+def removeOver(grafo, over):
+
+    result = {}
+
+    for key in grafo:
+
+        result[key] = []
+        
+        nodo = grafo[key]
+
+        for arista in nodo:
+
+            if arista['area'] < over:
+                result[key].append(arista)    
+
+    return result
+
+
+def optimalGroups(grafo, over):
+
+    grafo = removeOver(grafo=grafo, over=over)
+
+    tamNodos = {}
+
+    for key in grafo:
+
+        nodo = grafo[key]
+        
+        tamNodos[key] = len(nodo)
+   
+    for key in grafo:
+
+        if tamNodos[key] > 0:
+
+            nodo = grafo[key]
+            
+            tamNodo = len(nodo)
+
+            for arista in range(tamNodo):
+                
+                target = nodo[arista]['id']
+                siPuede = True
+
+                for posible in tamNodos.keys():
+                    
+                    tamLocal = tamNodos[posible]
+
+                    if (posible != key) and (tamLocal > 0):
+
+                        needEval = next((True for x in grafo[posible] if x['id'] == target), False)
+
+                        if needEval or (posible == target):
+                            puede = tamNodo >= tamLocal
+                            siPuede = siPuede and puede
+
+                if siPuede:
+
+                    for posible in tamNodos.keys():
+                        
+                        tamLocal = tamNodos[posible]
+
+                        if (posible != key) and (tamLocal > 0):
+                            
+                            grafo[posible] = [ x for x in grafo[posible] if x['id'] != target and x['id'] != key ]
+                            tamNodos[posible] = len(grafo[posible])
+                
+                else:
+                    
+                    grafo[key] = [ x for x in grafo[key] if x['id'] != target ]
+                    tamNodos[key] = len(grafo[key])
+                    
+            
+    grupos = []
+    descartados = list(grafo.keys())
+
+    for key in grafo:
+
+        nodo = grafo[key]
+        tamNodo = len(nodo)
+
+        if tamNodo > 0:
+            
+            miembros = [key]
+            
+            for arista in nodo:
+                miembros.append( arista['id'] )
+
+            for miembro in miembros:
+                if miembro in descartados:
+                    descartados.remove( miembro )
+            
+            grupos.append(miembros)
+
+    return grupos, descartados
+
+
+def summarize(curve):
 
     time = curve[0]
     n = len(time)
     signal = curve[1]
     absRate = n
 
-    rateFactor = 1/3  
-    wingFactor = 0.025
+    rateFactor = 1/10  
+    wingFactor = 0.01
     fwhm       = int(wingFactor * absRate)
     k          = 2 * fwhm
 
@@ -51,6 +161,28 @@ def smooth(curve):
     return(timeScale, filtScale)
 
 
+def antialiasing(noise):
+
+    scur = summarize(curve=noise)
+
+    tam = len(scur[0])
+    fur = 5
+
+    while(True):
+        
+        sy = signal.savgol_filter(scur[1], int(tam / fur), fur)
+        
+        sy = sy[~np.isnan(sy)]
+        sy = sy[np.where(sy>= 0)]
+
+        if(len(sy) == tam):
+            break
+        else:
+            fur -= 1
+
+    return (scur[0], scur[1], sy)
+
+
 def getCatalog(path):
 
     with shelve.open(path, flag='r') as pod:
@@ -63,29 +195,17 @@ def getData(path, key):
         return pod[key]
 
 
-def sortCl(vector):
+def binSummary(path, filename, content):
 
-    vector = sorted(vector, key= lambda element: element['cl'])
-    return vector
+    with shelve.open(path + filename, flag='c') as summary:
+        for key in content.keys():
+            summary[key] = content[key]
 
 
-def sortPcm(vector):
+def sortArea(vector):
     
-    vector = sorted(vector, key= lambda element: element['pcm'])
+    vector = sorted(vector, key= lambda element: element['area'])
     return vector
-
-
-def isMatch(cl, pcm, element):
-
-    return (element['cl'] <= cl) and (element['pcm'] <= pcm)
-
-
-def searchInGroups(groups, key):
-
-    for gkey in groups.keys():
-
-        if key in groups[gkey]:
-            return gkey
 
 
 def makeDirectory(path):
@@ -104,16 +224,24 @@ def writeFileTable(path, filename, content):
 
     with open(path + filename, mode='w') as wf:
         
-        headers     = list(content[0].keys())
-        txtHeader   = ','.join(headers)
-        wf.writelines(txtHeader + "\n")
+        needHeader = True
 
-        for line in content:
+        for group in content:
             
-            txtLine = list(line.values())
-            txtLine = [ str(cell) for cell in txtLine]
-            txtLine = ','.join(txtLine)
-            wf.writelines(txtLine + "\n")
+            members = group['members']
+
+            if needHeader:
+                headers     = list(members[0].keys())
+                txtHeader   = ','.join(headers)
+                wf.writelines(txtHeader + "\n")
+                needHeader = False
+
+            for member in members:
+                
+                txtLine = list(member.values())
+                txtLine = [ str(cell) for cell in txtLine ]
+                txtLine = ','.join(txtLine)
+                wf.writelines(txtLine + "\n")
 
 
 def writeFileSummary(path, filename, content):
@@ -139,81 +267,124 @@ def graphicAll(path, filename, content, source):
     magnay = np.array([])
 
     plt.style.use('ggplot')
-    plt.figure(figsize=(12.8*2, 9.6*2))
+    plt.figure(figsize=(12.8*4, 9.6*4))
     
     for line in content:
         idx = line['id']
-        unit = getData(source, idx)
+        unit = getData(path=source, key=idx)
 
-        plt.plot(unit['curve'][0], unit['curve'][1])
-        magnax = np.concatenate((magnax, unit['curve'][0]))
-        magnay = np.concatenate((magnay, unit['curve'][1]))
+        try:
+            plt.plot(unit['curve'][:, 0], unit['curve'][:, 1], label=idx, linewidth=3)
+            magnax = np.concatenate((magnax, unit['curve'][:, 0]))
+            magnay = np.concatenate((magnay, unit['curve'][:, 1]))
+        except:
+            pass
 
     plt.xlabel("Phase [JD]")
     plt.ylabel("Normalized Flux")
+    plt.legend()
     plt.savefig(path + filename)
     plt.close()
 
     xindexer = magnax.argsort()
-    sorted_magnax = magnax[xindexer[::-1]]
-    sorted_magnay = magnay[xindexer[::-1]]
+    sorted_magnax = magnax[xindexer[::]]
+    sorted_magnay = magnay[xindexer[::]]
 
     return (sorted_magnax, sorted_magnay)
 
 
-def graphicSmooth(path, filename, noise):
+def graphicNoise(path, filename, noise, curve):
 
     plt.style.use('ggplot')
     plt.figure(figsize=(12.8*2, 9.6*2))
     
-    scur = smooth(curve=noise)
-    plt.plot(scur[0], scur[1])
+    plt.plot(noise[0], noise[1], color='palegreen')
+    plt.plot(curve[0], curve[1], color='red', linewidth=3)
+
+    plt.xlabel("Phase [JD]")
+    plt.ylabel("Normalized Flux")
+    plt.title("Noise Profile")
+    plt.savefig(path + 'noise_'+filename)
+    plt.close()
+
+
+def graphicCurve(path, filename, curve):
+
+    plt.style.use('ggplot')
+    plt.figure(figsize=(12.8*2, 9.6*2))
+    
+    plt.plot(curve[0], curve[1], color='purple', linewidth=3)
 
     plt.xlabel("Phase [JD]")
     plt.ylabel("Normalized Flux")
     plt.title("Smooth Curve")
-    plt.savefig(path + filename)
+    plt.savefig(path + 'smooth_'+filename)
     plt.close()
 
-    return scur
+
+def groupPackage(path, targets):
+
+    packages = {}
+
+    for key in targets:
+
+        unit = getData(path=path, key = key)
+
+        if not unit['pgr'] in packages.keys():
+            packages[unit['pgr']] = []
+        
+        packages[unit['pgr']].append(key)
+    
+    return packages
 
 
-def compare(podFile, lcFile, clLimit, pcmLimit, outPath):
+def compare(podFile, lcFile, areaLimit, outPath):
 
-    print("\nStarting element grouping...")
+    print("\nStarting group filtering...\n")
 
     catalog = getCatalog(podFile)
+
+    pre = groupPackage(path=podFile, targets=catalog)
+    
     pgr = {}
+    groupCounter = 1;
+    nulos = []
 
-    collect = []
-    nulos   = []
-    repeat  = []
+    for key in pre.keys():
 
-    for key in catalog:
+        raid = pre[key]
+
+        if key != 'NULL':
         
-        if not(key in collect):
-            
-            pgr[key] = []
-            unit = getData(podFile, key)
-            
-            for ele in unit['vector']:
+        
+            grafo = {}
 
-                    if isMatch(cl=clLimit, pcm=pcmLimit, element=ele):
-                        pgr[key].append(ele)
+            for ele in raid:
 
-                        if not (ele['id'] in collect):
-                            collect.append(ele['id'])
-                        else:
-                            if not (ele['id'] in repeat):
-                                repeat.append(ele['id'])
-            
-            if len(pgr[key]) > 0:
-                pgr[key].append({'id':key, 'cl': 0, 'pcm': 0})
-                collect.append(key)
-            else:
-                del(pgr[key])
-                nulos.append({'id':key, 'cl': 0, 'pcm': 0})
+                unit = getData(path=podFile, key=ele)
+                areaU   = sortArea(unit['vector'])
+                
+                grafo[ele] = areaU
 
+            grupos, sobrantes = optimalGroups(grafo=grafo, over=areaLimit)
+        
+        else:
+            grupos = []
+            sobrantes = raid
+        
+        for g in grupos:
+
+            pgr['S_'+str(groupCounter)] = []
+
+            for e in g:
+                unit = getData(path=lcFile, key=e)
+                pgr['S_'+str(groupCounter)].append({'members': unit['members'], 'id':e})
+
+            groupCounter += 1
+        
+        for s in sobrantes:
+            unit = getData(path=lcFile, key=s)
+            nulos.append({'members': unit['members'], 'id':s})
 
     total = 0
 
@@ -223,54 +394,12 @@ def compare(podFile, lcFile, clLimit, pcmLimit, outPath):
         
         total += count
 
-    print('\nUnmatched Elements', "\t", len(nulos))
-    print('Matched Elements', "\t", len(collect))
-    print('Repeated Elements', "\t", len(repeat))
-    print('Elements In Catalog', "\t", len(catalog))
-    print('Total Grouped Elements', "\t", total, "\n")
+    print('Groups In Catalog', "\t", len(catalog))
+    print('Unmatched Groups', "\t", len(nulos))
+    print('Total Consolidated Groups', "\t", total)
+    print('Total Super Groups Created', "\t", len(pgr.keys()), "\n")
 
-    print("Removing repeated elements...")
-
-    totrep = 0
-    for rep in repeat:
-        
-        tgroup = []
-
-        for key in pgr.keys():
-            exist = next((x for x in pgr[key] if x["id"] == rep), False)
-            
-            if(exist):
-                tgroup.append({'id': key, 'factor': exist['cl'] * exist['pcm'] })
-
-        tgroup = sorted(tgroup, key=lambda t: t['factor'])
-
-        totrep += (len(tgroup)-1)
-
-        for vic in tgroup[1:]:
-            exist = next(x for x in pgr[ vic['id'] ] if x["id"] == rep)
-            pgr[ vic['id'] ].remove(exist)
-
-    alone = []
-    aloneKeys = []
-    totGr = 0
-
-    for key in pgr.keys():
-        
-        count = len(pgr[key])
-        
-        if(count == 1):
-            aloneKeys.append(key)
-            alone.append(pgr[key][0])
-        else:
-            totGr += count
     
-    for key in aloneKeys:
-        del(pgr[key])
-
-    print("\nRepeats Removed", "\t", totrep)
-    print("Alone Elements", "\t\t", len(alone))
-    print("Elements Grouped Effectively", "\t", totGr, "\n")
-
     print("\nCreating output directory.")
     makeDirectory(path=outPath)
     
@@ -278,71 +407,66 @@ def compare(podFile, lcFile, clLimit, pcmLimit, outPath):
     sumaryDic = {}
     sumaryDic['Pod File']    = podFile
     sumaryDic['Lc File']     = lcFile
-    sumaryDic['Cl Limit']    = clLimit
-    sumaryDic['Pcm Limit']   = pcmLimit
-    sumaryDic['Unmatched Elements'] = len(nulos)
-    sumaryDic['Matched Elements'] = len(collect)
-    sumaryDic['Repeated Elements'] = len(repeat)
-    sumaryDic['Elements In Catalog'] =  len(catalog)
-    sumaryDic['Total Grouped Elements'] = total
-    sumaryDic["Repeats Removed"] = totrep
-    sumaryDic["Alone Elements"] = len(alone)
-    sumaryDic["Elements Grouped Effectively"] = totGr
+    sumaryDic['Area Limit']  = areaLimit
+    sumaryDic['Groups In Catalog'] =  len(catalog)
+    sumaryDic['Unmatched Groups'] = len(nulos)
+    sumaryDic['Total Consolidated Groups.'] = total
+    sumaryDic['Total Super Groups Created'] = len(pgr.keys())
     writeFileSummary(path=outPath, filename='summary.csv', content=sumaryDic)
 
     print("\nCreating file of unmatched elements.")
     writeFileTable(path=outPath, filename='unmatched.csv', content=nulos)
     
-    print("\nCreating file of alone elements.")
-    writeFileTable(path=outPath, filename='alone.csv', content=alone)
-
     print("\nCreating files for the found groups.")
     cntf = 0
     for key in pgr.keys():
         cntf += 1
-        writeFileTable(path=outPath, filename='group_'+key+'.csv', content=pgr[key])
+        writeFileTable(path=outPath, filename=key+'.csv', content=pgr[key])
     print("\tHas been created:", cntf, "Group Files!")
     
     print("\nCreating charts.")
-    cntg = 0
     
+    summaryBin = {}
     for key in pgr.keys():
         
-        cntg += 1
-        
-        print("\r\tAll  G"+str(cntg)+": "+key+"...        ", end='')
+        print("\r\tAll "+key+"...        ", end='')
         noise = graphicAll(path=outPath, filename='all_'+key+'.png', content=pgr[key], source=lcFile)
         
         if(noise):
             
-            print("\r\tSmooth  G"+str(cntg)+": "+key+"...      ", end='')
-            graphicSmooth(path=outPath, filename='smooth_'+key+'.png', noise=noise)
+            paraCurve = antialiasing(noise=noise)
+            print("\r\tNoise  "+key+"...      ", end='')
+            graphicNoise(path=outPath, filename=key+'.png', noise=(paraCurve[0], paraCurve[1]), curve=(paraCurve[0], paraCurve[2]))
+
+            print("\r\tSmooth "+key+"...      ", end='')
+            graphicCurve(path=outPath, filename=key+'.png', curve=(paraCurve[0], paraCurve[2]))
+            summaryBin[key] = {'id': key, 'members': pgr[key], 'curve': (paraCurve[0], paraCurve[2])}
     
     print("\r\tUnmatched chart...                            ", end='')
     graphicAll(path=outPath, filename='unmatched.png', content=nulos, source=lcFile)
     
-    print("\r\tAlone chart...                            ", end='')
-    graphicAll(path=outPath, filename='alone.png', content=alone, source=lcFile)
-    print("\r\tCharts ready!.                           ", end='')
+    
+    print("\n\nCreating binary summary file.!\n")
+    summaryBin['catalog'] = list(pgr.keys())
+    binSummary(path=outPath, filename='summary.bin', content=summaryBin)
 
     print("\nDone!\n")
 
 
 def main(args):
 
-    if len(args) == 4:
+    if len(args) == 5:
         
-        lcFile  = args[1] + "summary.bin"
-        podFile = args[1] + "super.pod"
-        outPath = args[1] + "super/"
-        cl      = int(args[2])
-        pcm     = int(args[3])
+        lcFile  = args[1]
+        podFile = args[2]
+        outPath = args[3]
+        area    = float(args[4])
 
-        compare(podFile=podFile, lcFile=lcFile, clLimit=cl, pcmLimit=pcm, outPath=outPath)
+        compare(podFile=podFile, lcFile=lcFile, areaLimit=area, outPath=outPath)
 
     else:
-        print('\tPlease use: python super_compare.py [Path to directory containing summary.bin and super.pod files] [Max CL] [Max PCM]')
-        print('\tExample: python super_compare.py /home/user/out/ 100 1000')
+        print('\tPlease use: python super_compare.py [Path to aligned summary light curves file] [Path to summary pod file] [Path to output directory] [Max Area]')
+        print('\tExample: python super_compare.py /home/user/summay_align.bin /home/user/summay_align.pod /home/user/super/ 10')
 
 
 if __name__ == '__main__':

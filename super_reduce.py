@@ -2,10 +2,6 @@ import os
 import shelve
 import numpy as np
 
-def addPostMark(path, post):
-
-    base = os.path.splitext(path)
-    return base[0] + post + base[1]
 
 def addCustoMark(path, post, custom):
 
@@ -26,6 +22,7 @@ def getData(path, target):
         data = db[target]
         return data
 
+
 def setData(path, target, data):
 
     with shelve.open(path) as db:
@@ -34,9 +31,9 @@ def setData(path, target, data):
 
 def reduceCurves(path, relevantFactor, maxJump):
 
-    persist_path = addPostMark(path, '_reduce_' + str(relevantFactor) )
+    persist_path = addCustoMark(path, '_reduce', '.bin')
     
-    targets = getTargets(path)
+    targets = getTargets(path=path)
     readyCurves = []
     
     total = len(targets)
@@ -83,17 +80,17 @@ def reduceCurves(path, relevantFactor, maxJump):
         i += 1
 
         if isCut:
-            cutCruves.append(unit['target']+"\t"+str(distance))
-            print("\t", i, '/', total, unit['target'], "The curve is not continuous, it is removed from the set.")
+            cutCruves.append(unit['id']+"\t"+str(distance))
+            print("\t", i, '/', total, unit['id'], "The curve is not continuous, it is removed from the set.")
 
         else:
             actual = len(x)
             unit['curve'] = (np.array(x), np.array(y))
             reduction = ( (limit - actual) / limit) * 100
-            readyCurves.append(unit['target'])
-            setData(path=persist_path, target=unit['target'], data=unit)
+            readyCurves.append(unit['id'])
+            setData(path=persist_path, target=unit['id'], data=unit)
             
-            print("\t", i, '/', total, unit['target'], "Initial", limit, "Actual", actual, "Reduce", format(reduction, ".2f"), "%")
+            print("\t", i, '/', total, unit['id'], "Initial", limit, "Actual", actual, "Reduce", format(reduction, ".2f"), "%")
         
     if(len(cutCruves) > 0):
         
@@ -124,8 +121,8 @@ def main(args):
         reduceCurves(path=path, relevantFactor=factor, maxJump=jump)
 
     else:
-        print('\tPlease use: python reduce.py [Path to smooth curve file] [Min Relevant] [Max Jump]')
-        print('\tExample: python reduce.py /home/user/block_better_120_smooth_10.bin 2 0.025')
+        print('\tPlease use: python super_reduce.py [Path to summary.bin file] [Min Relevant] [Max Jump]')
+        print('\tExample: python super_reduce.py /home/user/out/summary.bin 4 0.025')
 
 
 if __name__ == '__main__':

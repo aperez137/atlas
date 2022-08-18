@@ -75,10 +75,12 @@ def export(lcFile, outPath):
 
     pre = groupPackage(path=lcFile, targets=catalog)
     
-    print("\nCreating output directory.")
+    print( "\nTotal groups found", len(pre.keys()),"\n" )
+
+    print("\n\tCreating output directory.")
     makeDirectory(path=outPath)
     
-    print("\nCreating charts.")
+    print("\n\tCreating charts.")
     
     for key in pre.keys():
         

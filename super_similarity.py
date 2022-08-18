@@ -4,6 +4,13 @@ import numpy as np
 import similaritymeasures as sm
 from multiprocessing import Process
 
+
+def addCustoMark(path, post, custom):
+
+    base = os.path.splitext(path)
+    return base[0] + post + custom
+
+
 def persist(path, data):
 
     data = "\n".join(data)
@@ -47,6 +54,8 @@ def createPod(output):
     
     buffer  = buffer.split("\n")
     
+    areaArr = []
+
     catalog = []
     db = {}
     for i in range(len(buffer)):
@@ -55,13 +64,18 @@ def createPod(output):
 
         if(len(tmp) == 4):
         
-            key = tmp[0]
+            key = tmp[1]
 
             if  not (key in catalog):
                 catalog.append(key)
-                db[key] = {'id': key, 'vector': []}
+                db[key] = {'pgr': tmp[0], 'id': key, 'vector': []}
             
-            sub = {'id': tmp[1], 'cl': float(tmp[2]), 'pcm': float(tmp[3])}
+            area = float(tmp[3])
+
+            if(tmp[0] != 'NULL'):
+                areaArr.append(area)
+
+            sub = {'id': tmp[2], 'area': area}
             db[key]['vector'].append(sub)
 
     with shelve.open(output) as pod:
@@ -69,6 +83,15 @@ def createPod(output):
 
         for key in catalog:
             pod[key] = db[key]
+    
+    areaArr = np.array(areaArr)
+
+    descriptors = {}
+    descriptors['Min Area ']= np.min(areaArr)
+    descriptors['Max Area ']= np.max(areaArr)
+    descriptors['Avg Area ']= np.mean(areaArr)
+
+    return descriptors
 
 
 def makeFormat(curve_1):
@@ -82,7 +105,7 @@ def makeFormat(curve_1):
     return exp_data
 
 
-def do(match, targets, output, curves):
+def do(match, targets, origin, output):
     
     print("\tStart", match)
 
@@ -91,8 +114,8 @@ def do(match, targets, output, curves):
 
     total = len(targets)
 
-    pivot = curves[match]
-    pkgPivot = makeFormat(pivot)
+    external = getData(path=origin, target=match)
+    pivot = external['curve']
 
     buffer = []
 
@@ -100,13 +123,15 @@ def do(match, targets, output, curves):
     
     while(i < total):
 
-        case = curves[targets[i]]
-        pkgCase = makeFormat(case)
+        internal = getData(path=origin, target=targets[i])
+        case = internal['curve']
 
-        cl = sm.curve_length_measure(pkgPivot, pkgCase)
-        pcm = sm.pcm(pkgPivot, pkgCase)
-        
-        buffer.append(match+","+targets[i]+","+str(cl)+","+str(pcm))
+        if external['pgr'] != 'NULL':
+            area = sm.area_between_two_curves(pivot, case) * 100
+        else:
+            area = -1
+
+        buffer.append(external['pgr']+","+match+","+targets[i]+","+str(area))
 
         if(len(buffer) == 100):
             persist(output, buffer)
@@ -120,93 +145,98 @@ def do(match, targets, output, curves):
     print("\tReady", match)
 
 
-def produce(match, targets, output, curves):
+def produce(match, targets, origin, output):
 
-    do(match, targets, output, curves)
+    do(match, targets, origin, output)
 
 
-def dispatch(path, targets, curves):
+def groupPackage(path, targets):
 
-    fraction = targets[:]
+    packages = {}
 
-    while len(fraction) > 0:
-        
-        limit = len(fraction)
-        
-        print(limit, "IN QUEUE")
-        print("Start Block")
-        
-        if(limit >= 1):
-            p1 = Process(target=produce, args=(fraction[0], targets, path + "super.pod.a.tmp", curves))
-            p1.start()
-        
-        if(limit >= 2):
-            p2 = Process(target=produce, args=(fraction[1], targets, path + "super.pod.b.tmp", curves))
-            p2.start()
-        
-        if(limit >= 3):
-            p3 = Process(target=produce, args=(fraction[2], targets, path + "super.pod.c.tmp", curves))
-            p3.start()
-        
-        if(limit >= 4):
-            p4 = Process(target=produce, args=(fraction[3], targets, path + "super.pod.d.tmp", curves))
-            p4.start()
+    for key in targets:
 
-        if p1:
-            p1.join()
-        
-        if p2:
-            p2.join()
-        
-        if p3:
-            p3.join()
-        
-        if p4:
-            p4.join()
+        unit = getData(path=path, target=key)
 
-        print("Ready Block\n\n")
-
-        fraction = fraction[4:]
+        if not unit['pgr'] in packages.keys():
+            packages[unit['pgr']] = []
+        
+        packages[unit['pgr']].append(key)
     
+    return packages
+
+
+def dispatch(path, targets, output, start_at=0):
+
+    grpTargets = groupPackage(path=path, targets=targets)
+
+    print("\n", len(grpTargets.keys()), "alignment groups have been found in the file.\n")
+
+    for gKey in grpTargets:
+
+        print("\nProcessing elements for the group:", gKey, "\n")
+
+        targets = grpTargets[gKey]
+
+        fraction = targets[:]
+
+        skip_counter = 0
+
+        while len(fraction) > 0:
+            
+            if skip_counter >= start_at:
+                limit = len(fraction)
+                
+                print(limit, "IN QUEUE FOR PREGROUP ", gKey)
+                print("Start Block")
+                
+                if(limit >= 1):
+                    p1 = Process(target=produce, args=(fraction[0], targets, path, output+".a.tmp"))
+                    p1.start()
+                
+                if(limit >= 2):
+                    p2 = Process(target=produce, args=(fraction[1], targets, path, output+".b.tmp"))
+                    p2.start()
+                
+                if(limit >= 3):
+                    p3 = Process(target=produce, args=(fraction[2], targets, path, output+".c.tmp"))
+                    p3.start()
+                
+                if(limit >= 4):
+                    p4 = Process(target=produce, args=(fraction[3], targets, path, output+".d.tmp"))
+                    p4.start()
+
+                if p1:
+                    p1.join()
+                
+                if p2:
+                    p2.join()
+                
+                if p3:
+                    p3.join()
+                
+                if p4:
+                    p4.join()
+
+                print("Ready Block\n\n")
+
+            else:
+
+                print(fraction[:4], "Skiped!")
+
+            fraction = fraction[4:]
+            skip_counter += 1
+        
+        print("\tDone!")
+
     print("\nCreating Pod File...")
-    createPod(output= path + 'super.pod')
-    print("\nDone!.\n")
+    descriptors = createPod(output=output)
+    print("\nDone!.")
 
-def reduceCurves(path, targets, result):
-
-    total = len(targets)
-
-    i = 0
-    while(i < total):
-        
-        unit = getData(path=path, target=targets[i])
-        curve = unit['curve']
-        
-        limit = len(curve[0])
-        
-        x = [curve[0][0]]
-        y = [curve[1][0]]
-        
-        k = 0
-        j = 1
-        relevant = 0.0001
-
-        while(j < limit):
-            
-            difX = abs(curve[0][j] - curve[0][k])
-            difY = abs(curve[1][j] - curve[1][k])
-            
-            if not (difX +  difY) <= relevant:
-                x.append(curve[0][j])
-                y.append(curve[1][j])
-                k = j
-
-            j += 1
-
-        i += 1
-        actual = len(x)
-        result[unit['id']] = (x, y)
-        print("\t", unit['id'], "Initial", limit, "Actual", actual, "Reduce", limit - actual)
+    print("\nSummary:")
+    for key in descriptors:
+        print("\t", key, descriptors[key])
+    print("\n")
 
 
 def main(args):
@@ -214,21 +244,17 @@ def main(args):
     if len(args) == 2:
         
         path = args[1]
-    
+        output = addCustoMark(path=path, post='', custom='.pod')
 
-        with shelve.open(path + 'summary.bin', flag='r') as db:
+        with shelve.open(path, flag='r') as db:
 
-            package = db['catalog']
-        
-        print("\nSimplify curves.\n")
-        simplify = {}
-        reduceCurves(path=path + 'summary.bin', targets=package, result=simplify)
-        print("\n")
-        dispatch(path=path, targets=package, curves=simplify)
+            catalog = db['catalog']
+            
+        dispatch(path=path, targets=catalog, output=output)
 
     else:
-        print('\tPlease use: python super_similarity.py [Path to directory containing summary.bin file]')
-        print('\tExample: python super_similarity.py /home/user/out/')
+        print('\tPlease use: python similarity.py [Path to aligned summary light curves file]')
+        print('\tExample: python similarity.py /home/user/summary_align.bin')
 
 
 if __name__ == '__main__':

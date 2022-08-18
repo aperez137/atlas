@@ -1,6 +1,14 @@
+import os
 import shelve
 import numpy as np
 from scipy import signal
+
+
+def addCustoMark(path, post, custom):
+
+    base = os.path.splitext(path)
+    return base[0] + post + custom
+
 
 def getData(path, target):
 
@@ -21,9 +29,6 @@ def findMiddle(array):
     size = len(array)
     pos = int( size / 2)
 
-    if size % 2 == 0:
-        pos -= 1
-    
     return pos
 
 
@@ -166,9 +171,9 @@ def createFile(origin, output, bucket):
                 raid = bucket[grp]
                 total = len(raid)
 
-                if total > 1 and grp != 'NULL':
+                if grp != 'NULL':
                     groupCounter += 1
-                    gMark = 'G_'+str(groupCounter)
+                    gMark = 'AG_'+str(groupCounter)
                 else:
                     gMark = 'NULL'
 
@@ -185,6 +190,8 @@ def createFile(origin, output, bucket):
                     des[element['id']] = unit
             
             des['catalog'] = catalog
+
+
 
 
 def align(path, targets, prominence, distance, output):
@@ -207,39 +214,25 @@ def align(path, targets, prominence, distance, output):
     createFile(origin=path, output=output, bucket=bucket)
     print("\tDone!\n")
 
-
 def main(args):
 
-    if len(args) == 6:
+    if len(args) == 4:
         
         path = args[1]
-        output = args[3]
-        prominence = float(args[4])
-
-        distance = int(args[5])
+        prominence = float(args[2])
+        distance = int(args[3])
 
         if distance <= 0:
             distance = None
 
-        wanteds = args[2].split(',')
-        package = []
+        out = addCustoMark(path=path, post='_align', custom='.bin')
 
-        with shelve.open(path, flag='r') as db:
-
-            catalog = db['catalog']
-            for c in catalog:
-                e = db[c]
-
-                for w in wanteds:
-                    if w in e['type']:
-                        package.append(c)
-                        break
-        
-        align(path=path, targets=package, prominence=prominence, distance=distance, output=output)
+        package = getTargets(path=path)
+        align(path=path, targets=package, prominence=prominence, distance=distance, output=out)
 
     else:
-        print('\tPlease use: python align.py [Path to smooth light curves file] ["Types of stars to consider"] [Path to output file] [Min Prominence] [Min Distance]')
-        print('\tExample: python align.py /home/user/block_better_120_smooth_10.bin "DCEP,HADS,RR,TTS" /home/user/align.bin 0.2 10')
+        print('\tPlease use: python super_align.py [Path to summary.bin file] [Min Prominence] [Min Distance]')
+        print('\tExample: python super_align.py /home/user/out/summary.bin 0.2 100')
 
 
 if __name__ == '__main__':
