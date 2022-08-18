@@ -4,6 +4,7 @@ import numpy as np
 import similaritymeasures as sm
 from multiprocessing import Process
 
+
 def persist(path, data):
 
     data = "\n".join(data)
@@ -24,6 +25,7 @@ def getTargets(path):
     with shelve.open(path, flag='r') as db:
         targets = db['catalog']
         return targets
+
 
 def createPod(output):
 
@@ -97,17 +99,6 @@ def createPod(output):
     descriptors['Avg Area ']= np.mean(areaArr)
 
     return descriptors
-
-
-def makeFormat(curve_1):
-
-    x = curve_1[0]
-    y = curve_1[1]
-    exp_data = np.zeros((len(x), 2))
-    exp_data[:, 0] = x
-    exp_data[:, 1] = y
-
-    return exp_data
 
 
 def do(match, targets, origin, output):

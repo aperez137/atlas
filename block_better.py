@@ -3,10 +3,12 @@ import pymysql
 import lightkurve as lk
 from tabulate import tabulate
 
+
 def store(path, key, unit):
 
     with shelve.open(path) as db:
         db[key]  = unit
+
 
 def do(exptime):
 

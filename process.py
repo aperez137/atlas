@@ -4,6 +4,7 @@ import lightkurve as lk
 
 from db import DbControl
 
+
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
         try:
@@ -13,6 +14,7 @@ class NumpyEncoder(json.JSONEncoder):
         except Exception as ex:
             print("\n\n", 'JSON', "\n", ex, "\n\n")
             return '---'
+
 
 def saveDataFrom(oid, coordinate):
 

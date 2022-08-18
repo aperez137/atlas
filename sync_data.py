@@ -9,7 +9,7 @@ f = open('candidates.txt', mode='r')
 data = f.readlines()
 f.close()
 
-offset = 239977
+offset = 0
 data = data[offset:]
 
 total = len(data)

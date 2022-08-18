@@ -1,6 +1,5 @@
 import os
 import shelve
-from turtle import color
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import signal
@@ -189,10 +188,10 @@ def getCatalog(path):
         return pod['catalog']
 
 
-def getData(path, key):
+def getData(path, target):
 
     with shelve.open(path, flag='r') as pod:
-        return pod[key]
+        return pod[target]
 
 
 def binSummary(path, filename, content):
@@ -271,7 +270,7 @@ def graphicAll(path, filename, content, source):
     
     for line in content:
         idx = line['id']
-        unit = getData(path=source, key=idx)
+        unit = getData(path=source, target=idx)
 
         try:
             plt.plot(unit['curve'][:, 0], unit['curve'][:, 1], label=idx, linewidth=3)
@@ -328,7 +327,7 @@ def groupPackage(path, targets):
 
     for key in targets:
 
-        unit = getData(path=path, key = key)
+        unit = getData(path=path, target=key)
 
         if not unit['pgr'] in packages.keys():
             packages[unit['pgr']] = []
@@ -361,7 +360,7 @@ def compare(podFile, lcFile, areaLimit, outPath):
 
             for ele in raid:
 
-                unit = getData(path=podFile, key=ele)
+                unit = getData(path=podFile, target=ele)
                 areaU   = sortArea(unit['vector'])
                 
                 grafo[ele] = areaU
@@ -377,13 +376,13 @@ def compare(podFile, lcFile, areaLimit, outPath):
             pgr['S_'+str(groupCounter)] = []
 
             for e in g:
-                unit = getData(path=lcFile, key=e)
+                unit = getData(path=lcFile, target=e)
                 pgr['S_'+str(groupCounter)].append({'members': unit['members'], 'id':e})
 
             groupCounter += 1
         
         for s in sobrantes:
-            unit = getData(path=lcFile, key=s)
+            unit = getData(path=lcFile, target=s)
             nulos.append({'members': unit['members'], 'id':s})
 
     total = 0

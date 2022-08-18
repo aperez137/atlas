@@ -2,10 +2,12 @@ import os
 import shelve
 import numpy as np
 
+
 def addPostMark(path, post):
 
     base = os.path.splitext(path)
     return base[0] + post + base[1]
+
 
 def addCustoMark(path, post, custom):
 
@@ -25,6 +27,7 @@ def getData(path, target):
     with shelve.open(path, flag='r') as db:
         data = db[target]
         return data
+
 
 def setData(path, target, data):
 
@@ -112,6 +115,7 @@ def reduceCurves(path, relevantFactor, maxJump):
     setData(path=persist_path, target='catalog', data=readyCurves)
 
     print("\nDone!\n")
+
 
 def main(args):
 

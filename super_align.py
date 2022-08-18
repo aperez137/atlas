@@ -192,8 +192,6 @@ def createFile(origin, output, bucket):
             des['catalog'] = catalog
 
 
-
-
 def align(path, targets, prominence, distance, output):
 
     bucket = {}
@@ -213,6 +211,7 @@ def align(path, targets, prominence, distance, output):
     print("\nCreating output file...")
     createFile(origin=path, output=output, bucket=bucket)
     print("\tDone!\n")
+
 
 def main(args):
 

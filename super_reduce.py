@@ -110,6 +110,7 @@ def reduceCurves(path, relevantFactor, maxJump):
 
     print("\nDone!\n")
 
+
 def main(args):
 
     if len(args) == 4:

@@ -2,6 +2,7 @@ import shelve
 import numpy as np
 from scipy import signal
 
+
 def getData(path, target):
 
     with shelve.open(path, flag='r') as db:
@@ -171,7 +172,7 @@ def createFile(origin, output, bucket):
                     gMark = 'G_'+str(groupCounter)
                 else:
                     gMark = 'NULL'
-
+                
                 for element in raid:
 
                     catalog.append(element['id'])

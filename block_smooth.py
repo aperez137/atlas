@@ -2,10 +2,6 @@ import shelve
 import numpy as np
 import time
 
-# star_type = input("Star Type: ")
-# star_type = star_type.lower()
-# exptime = input("Exptime: ")
-# wing_factor = input("Wing Factor (%): ")
 
 def store(path, key, unit):
 
@@ -34,8 +30,8 @@ def smoothGauss(curve, wing_factor):
     signal = curve[1]
 
     absRate = n
-    rateFactor = 1/3                                # Factor proporicional del absRate, para obtener el sigRate
-    wingFactor = float(wing_factor) / 100           # Tamaño relativo (%) de las "alas" respecto a la curva total.
+    rateFactor = 1/3                                
+    wingFactor = float(wing_factor) / 100           
     fwhm       = int(wingFactor * absRate)
     k          = 2 * fwhm
 
@@ -89,6 +85,7 @@ def getData(path, target):
     with shelve.open(path, flag='r') as db:
         data = db[target]
         return data
+
 
 def getTargets(path):
     
@@ -147,7 +144,6 @@ def do(path, wingfactor):
         print("Total Time: ", time.time() - start,"\n")
     
     store(savePath, key='catalog', unit=targets)
-
 
 
 def main(args):
