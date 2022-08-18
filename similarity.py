@@ -199,16 +199,16 @@ def dispatch(path, targets, output, start_at=0):
                     p4 = Process(target=produce, args=(fraction[3], targets, path, output+".d.tmp"))
                     p4.start()
 
-                if p1:
+                if 'p1' in locals():
                     p1.join()
                 
-                if p2:
+                if 'p2' in locals():
                     p2.join()
                 
-                if p3:
+                if 'p3' in locals():
                     p3.join()
                 
-                if p4:
+                if 'p4' in locals():
                     p4.join()
 
                 print("Ready Block\n\n")

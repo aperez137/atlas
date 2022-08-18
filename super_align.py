@@ -171,14 +171,14 @@ def createFile(origin, output, bucket):
                 raid = bucket[grp]
                 total = len(raid)
 
-                if grp != 'NULL':
+                if total > 1 and grp != 'NULL':
                     groupCounter += 1
                     gMark = 'AG_'+str(groupCounter)
                 else:
                     gMark = 'NULL'
 
                 for element in raid:
-
+                    
                     catalog.append(element['id'])
                     
                     unit = ori[element['id']]
