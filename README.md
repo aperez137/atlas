@@ -62,7 +62,7 @@ To simplify this task, you can download the base binary files from <https://star
 
 ---
 
-Title: MSC
+Title: Eng. MSc
 
 Author: Antonio Maria Perez
 
