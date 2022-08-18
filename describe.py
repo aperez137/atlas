@@ -57,6 +57,7 @@ def describe(podFile):
             arrArea = arrArea + tmp
             print("\tMin Area:", np.min(tmp), "Max Area:", np.max(tmp), "Avg Area:", np.mean(tmp),"\n")
         else:
+            raid = pre[g]
             print("\tNull Elements:", len(raid))
         
     print("\n\tTotal Min Area:", np.min(arrArea))
