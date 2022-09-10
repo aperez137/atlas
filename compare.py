@@ -249,7 +249,9 @@ def writeFileSummary(path, filename, content):
 
 
 def graphicAll(path, filename, content, source):
-
+    
+    tfont = {'fontname':'DejaVu Sans', 'size':'20'}
+    
     if(len(content) == 0):
         print("\tEmpty chart, skipped!")
         return
@@ -258,7 +260,7 @@ def graphicAll(path, filename, content, source):
     magnay = np.array([])
 
     plt.style.use('ggplot')
-    plt.figure(figsize=(12.8*4, 9.6*4))
+    plt.figure(figsize=(12.8*1, 9.6*1))
     
     for line in content:
         idx = line['id']
@@ -270,10 +272,11 @@ def graphicAll(path, filename, content, source):
             magnay = np.concatenate((magnay, unit['curve'][:, 1]))
         except:
             pass
-
-    plt.xlabel("Phase [JD]")
-    plt.ylabel("Normalized Flux")
-    plt.legend()
+    
+    plt.tick_params(axis='x', labelsize=16)
+    plt.tick_params(axis='y', labelsize=16)
+    plt.xlabel("Phase [D]", **tfont)
+    plt.ylabel("Normalized Flux", **tfont)
     plt.savefig(path + filename)
     plt.close()
 
@@ -285,30 +288,38 @@ def graphicAll(path, filename, content, source):
 
 
 def graphicNoise(path, filename, noise, curve):
+    
+    tfont = {'fontname':'DejaVu Sans', 'size':'20'}
 
     plt.style.use('ggplot')
-    plt.figure(figsize=(12.8*2, 9.6*2))
+    plt.figure(figsize=(12.8*1, 9.6*1))
     
     plt.plot(noise[0], noise[1], color='palegreen')
     plt.plot(curve[0], curve[1], color='red', linewidth=3)
 
-    plt.xlabel("Phase [JD]")
-    plt.ylabel("Normalized Flux")
-    plt.title("Noise Profile")
+    plt.tick_params(axis='x', labelsize=16)
+    plt.tick_params(axis='y', labelsize=16)
+    plt.xlabel("Phase [D]", **tfont)
+    plt.ylabel("Normalized Flux", **tfont)
+    plt.title("Noise Profile", **tfont)
     plt.savefig(path + 'noise_'+filename)
     plt.close()
 
 
 def graphicCurve(path, filename, curve):
 
+    tfont = {'fontname':'DejaVu Sans', 'size':'20'}
+
     plt.style.use('ggplot')
-    plt.figure(figsize=(12.8*2, 9.6*2))
+    plt.figure(figsize=(12.8*1, 9.6*1))
     
     plt.plot(curve[0], curve[1], color='purple', linewidth=3)
 
-    plt.xlabel("Phase [JD]")
-    plt.ylabel("Normalized Flux")
-    plt.title("Smooth Curve")
+    plt.tick_params(axis='x', labelsize=16)
+    plt.tick_params(axis='y', labelsize=16)
+    plt.xlabel("Phase [D]", **tfont)
+    plt.ylabel("Normalized Flux", **tfont)
+    plt.title("Smooth Curve", **tfont)
     plt.savefig(path + 'smooth_'+filename)
     plt.close()
 
